@@ -58,6 +58,7 @@ def LoadConfigFile():
                 'use_time': 'no',
                 'use_user': 'no',
                 'use_name': 'yes',
+                'descr': 'Example1,Example2',
                 }
 
         UpdateConfigFile(config)
@@ -86,6 +87,7 @@ class ImageCopyController(object):
         self.time_str = StringVar()
         self.fn_str = StringVar()
         self.fnum_str = StringVar()
+        self.chosen = StringVar()
 
         self.cb_date = IntVar()
         self.cb_time = IntVar()
@@ -118,8 +120,8 @@ class ImageCopyController(object):
         right_frm.pack(side=RIGHT, fill=Y, expand=NO)
 
         self.file_info_frame(right_frm)
-        self.user_input_frame(right_frm)
         self.image_options_frame(right_frm)
+        self.user_input_frame(right_frm)
 
         #root.state('zoomed')
 
@@ -131,6 +133,7 @@ class ImageCopyController(object):
 
     def destroy_cmd(self, event):
         """What happens when the app is closed down."""
+        self.config['DEFAULT']['descr'] = ','.join(self.usr_descr)
         UpdateConfigFile(self.config)
 
     def options_cmd(self):
@@ -158,7 +161,7 @@ class ImageCopyController(object):
             cfn.append(cdt.strftime('%Y%m%d'))
         if self.cb_time.get():
             cfn.append(cdt.strftime('%H%M%S'))
-        ud = self.user_str.get()
+        ud = self.chosen.get()
         if len(ud) and self.cb_user.get():
             cfn.append(ud)
         if self.cb_name.get():
@@ -168,7 +171,7 @@ class ImageCopyController(object):
                 self.config['DEFAULT']['Destination'],
                 "{}.jpg".format('_'.join(cfn)))
         self.dst_str.set(copy_name)
-
+        self.usr_descr = self.listbox.get(0, END)
 
     def update_image_source(self):
         image =self.jpgfiles[self.jpgidx]
@@ -386,7 +389,9 @@ class ImageCopyController(object):
         date.pack(side=LEFT, fill=X, expand=NO)
 
     def user_input_frame(self, parent):
-        """Frame for user to input a part of the filename when copied."""
+        """Frame for user to input a part of the filename when copied.
+        Entry box for user input.
+        List for history of last 10 user inputs."""
         frm = Frame(parent, relief=RIDGE, bd=5)
         frm.pack(side=TOP, fill=X, expand=NO)
 
@@ -395,6 +400,9 @@ class ImageCopyController(object):
                 justify=CENTER, pady=5, padx=5)
         title.pack(side=TOP, fill=X, expand=NO)
         
+        selected = Label(frm, textvariable=self.chosen, bg='black', fg='white')
+        selected.pack(side=TOP, fill=X, expand=NO)
+
         ufrm = Frame(frm)
         ufrm.pack(side=TOP, fill=X, expand=NO)
 
@@ -403,10 +411,38 @@ class ImageCopyController(object):
                 bg='black', fg='white')
         user_entry.pack(side=LEFT, fill=X, expand=YES)
 
-        set_btn = Button(
-                ufrm, text="Set", padx=10, pady=5, anchor=E,
-                command=self.update_destination)
-        set_btn.pack(side=LEFT, fill=X, expand=NO)
+        add_btn = Button(
+                ufrm, text="Add", padx=10, pady=5, anchor=E,
+                command=self.update_select)
+        add_btn.pack(side=LEFT, fill=X, expand=NO)
+
+        self.listbox = Listbox(frm, selectmode=SINGLE)
+        self.listbox.pack(side=TOP, fill=X, expand=NO)
+        self.listbox.bind('<Double-Button-1>', self.list_select)
+
+        for choice in self.config['DEFAULT']['descr'].split(','):
+            self.listbox.insert(END, choice)
+
+    def update_select(self, event=None):
+        if not len(self.user_str.get()):
+            return
+
+        self.listbox.insert(0, self.user_str.get())
+        self.chosen.set(self.user_str.get())
+        if self.listbox.size() > 10:
+            self.listbox.delete(END)
+
+        self.user_str.set("")
+        self.update_destination()
+    
+        
+    def list_select(self, event):
+        sel = self.listbox.curselection()[0]
+        temp = self.listbox.get(sel)
+        self.chosen.set(temp)
+        self.listbox.delete(sel)
+        self.listbox.insert(0, temp)
+        self.update_destination()
 
     def image_options_frame(self, parent):
         frm = Frame(parent, relief=RIDGE, bd=5)
